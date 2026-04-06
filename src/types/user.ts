@@ -1,9 +1,18 @@
 export type UserRole = "admin" | "teacher" | "student";
 
+export interface UserClassBalance {
+  rate: number;
+  currency: string;
+  paidFor: number;
+  left: number;
+}
+
 export interface AuthUser {
   _id: string;
   email: string;
   firstName?: string;
   lastName?: string;
   role: UserRole;
+  class?: UserClassBalance;
+  attended?: number;
 }

@@ -24,3 +24,30 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+Keep calendar views inside a fixed-height card
+.calendar-fixed-height {
+  height: 720px;
+}
+
+/* Make FullCalendar use the available height */
+.calendar-fixed-height .fc {
+  height: 100%;
+}
+
+/* Ensure the scroller scrolls internally instead of stretching page */
+.calendar-fixed-height .fc-scroller,
+.calendar-fixed-height .fc-scroller-liquid-absolute {
+  overflow: auto !important;
+}
+
+/* Improve event readability in tight time-grid cells */
+.calendar-fixed-height .fc-event {
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .calendar-fixed-height {
+    height: 600px;
+  }
+}
