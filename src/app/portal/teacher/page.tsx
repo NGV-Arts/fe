@@ -1,27 +1,35 @@
 "use client";
 
-import axios from "axios";
 import { useEffect, useState } from "react";
+import axios from "axios";
 
 import PortalGuard from "@/components/auth/PortalGuard";
-import LessonDetailsModal from "@/components/portal/LessonDetailsModal";
+import ConfirmActionModal from "@/components/portal/ConfirmActionModal";
+import LessonRecurringChoiceModal from "@/components/portal/LessonRecurringChoiceModal";
 import LessonsCalendar from "@/components/portal/LessonsCalendar";
 import PortalShell from "@/components/portal/PortalShell";
+import RescheduleSeriesModal from "@/components/portal/RescheduleSeriesModal";
+import RescheduleSingleModal from "@/components/portal/RescheduleSingleModal";
+import TeacherLessonActionsModal from "@/components/portal/TeacherLessonActionsModal";
 import {
+  deleteLesson,
   fetchMyLessonsInRange,
   joinTeacherLesson,
+  rescheduleRecurringLessons,
+  rescheduleSingleLesson,
 } from "@/lib/api/lessons";
 import { getBrowserTimeZone } from "@/lib/utils/datetime";
 import { Lesson } from "@/types/lesson";
 
-function getApiErrorMessage(
-  error: unknown,
-  fallback: string,
-): string {
+type PendingDeleteMode = "single" | "series" | null;
+type PendingRescheduleMode = "single" | "series" | null;
+
+type ApiMessage = { message?: string | string[] };
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
-    const responseMessage = (error.response?.data as
-      | { message?: string | string[] }
-      | undefined)?.message;
+    const responseMessage = (error.response?.data as ApiMessage | undefined)
+      ?.message;
 
     if (Array.isArray(responseMessage)) {
       return responseMessage[0] || fallback;
@@ -40,15 +48,39 @@ export default function TeacherPortalPage() {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [timeZone, setTimeZone] = useState("UTC");
+  const [lastRange, setLastRange] = useState<{ start: string; end: string } | null>(null);
+
+  const [recurringChoiceOpen, setRecurringChoiceOpen] = useState(false);
+  const [recurringChoiceMode, setRecurringChoiceMode] = useState<"delete" | "reschedule">("delete");
+
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [pendingDeleteMode, setPendingDeleteMode] = useState<PendingDeleteMode>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [rescheduleSingleOpen, setRescheduleSingleOpen] = useState(false);
+  const [rescheduleSeriesOpen, setRescheduleSeriesOpen] = useState(false);
+  const [pendingRescheduleMode, setPendingRescheduleMode] = useState<PendingRescheduleMode>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   useEffect(() => {
     setTimeZone(getBrowserTimeZone());
   }, []);
 
+  const closeAllModals = () => {
+    setSelectedLesson(null);
+    setRecurringChoiceOpen(false);
+    setConfirmDeleteOpen(false);
+    setRescheduleSingleOpen(false);
+    setRescheduleSeriesOpen(false);
+    setPendingDeleteMode(null);
+    setPendingRescheduleMode(null);
+  };
+
   const loadRange = async (start: string, end: string) => {
     try {
       setLoading(true);
       setError(null);
+      setLastRange({ start, end });
       const data = await fetchMyLessonsInRange({ start, end });
       setLessons(data);
     } catch (error) {
@@ -58,16 +90,23 @@ export default function TeacherPortalPage() {
     }
   };
 
-  const handleJoin = async (lesson: Lesson) => {
+  const refreshCurrentRange = async () => {
+    if (!lastRange) return;
+    await loadRange(lastRange.start, lastRange.end);
+  };
+
+  const handleJoin = async () => {
+    if (!selectedLesson) return;
+
     try {
-      setJoiningLessonId(lesson._id);
+      setJoiningLessonId(selectedLesson._id);
       setError(null);
 
-      await joinTeacherLesson(lesson._id);
+      await joinTeacherLesson(selectedLesson._id);
 
       setLessons((previousLessons) =>
         previousLessons.map((item) =>
-          item._id === lesson._id
+          item._id === selectedLesson._id
             ? {
                 ...item,
                 teacherJoined: true,
@@ -77,7 +116,7 @@ export default function TeacherPortalPage() {
       );
 
       setSelectedLesson((previousLesson) =>
-        previousLesson && previousLesson._id === lesson._id
+        previousLesson
           ? {
               ...previousLesson,
               teacherJoined: true,
@@ -88,6 +127,144 @@ export default function TeacherPortalPage() {
       setError(getApiErrorMessage(error, "Failed to join class"));
     } finally {
       setJoiningLessonId(null);
+    }
+  };
+
+  const startDeleteFlow = () => {
+    if (!selectedLesson) return;
+
+    if (selectedLesson.recurrenceId) {
+      setRecurringChoiceMode("delete");
+      setRecurringChoiceOpen(true);
+      return;
+    }
+
+    setPendingDeleteMode("single");
+    setConfirmDeleteOpen(true);
+  };
+
+  const startRescheduleFlow = () => {
+    if (!selectedLesson) return;
+
+    if (selectedLesson.recurrenceId) {
+      setRecurringChoiceMode("reschedule");
+      setRecurringChoiceOpen(true);
+      return;
+    }
+
+    setPendingRescheduleMode("single");
+    setRescheduleSingleOpen(true);
+  };
+
+  const handleChooseRecurringSingle = () => {
+    setRecurringChoiceOpen(false);
+
+    if (recurringChoiceMode === "delete") {
+      setPendingDeleteMode("single");
+      setConfirmDeleteOpen(true);
+      return;
+    }
+
+    setPendingRescheduleMode("single");
+    setRescheduleSingleOpen(true);
+  };
+
+  const handleChooseRecurringSeries = () => {
+    setRecurringChoiceOpen(false);
+
+    if (recurringChoiceMode === "delete") {
+      setPendingDeleteMode("series");
+      setConfirmDeleteOpen(true);
+      return;
+    }
+
+    setPendingRescheduleMode("series");
+    setRescheduleSeriesOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedLesson || !pendingDeleteMode) return;
+
+    try {
+      setDeleteLoading(true);
+      setError(null);
+
+      await deleteLesson({
+        id:
+          pendingDeleteMode === "series"
+            ? selectedLesson.recurrenceId || selectedLesson._id
+            : selectedLesson._id,
+        deleteRecurring: pendingDeleteMode === "series",
+      });
+
+      closeAllModals();
+      await refreshCurrentRange();
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Failed to delete class"));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleSingleReschedule = async (payload: {
+    date: string;
+    time: string;
+  }) => {
+    if (!selectedLesson || !pendingRescheduleMode) return;
+
+    try {
+      setRescheduleLoading(true);
+      setError(null);
+
+      const newStartTime = new Date(
+        `${payload.date}T${payload.time}`,
+      ).toISOString();
+
+      await rescheduleSingleLesson({
+        lessonId: selectedLesson._id,
+        newStartTime,
+      });
+
+      closeAllModals();
+      await refreshCurrentRange();
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Failed to reschedule class"));
+    } finally {
+      setRescheduleLoading(false);
+    }
+  };
+
+  const handleSeriesReschedule = async (payload: {
+    day:
+      | "sunday"
+      | "monday"
+      | "tuesday"
+      | "wednesday"
+      | "thursday"
+      | "friday"
+      | "saturday";
+    time: string;
+  }) => {
+    if (!selectedLesson?.recurrenceId || pendingRescheduleMode !== "series") {
+      return;
+    }
+
+    try {
+      setRescheduleLoading(true);
+      setError(null);
+
+      await rescheduleRecurringLessons({
+        recurrenceId: selectedLesson.recurrenceId,
+        newDayOfWeek: payload.day,
+        newTimeGMT: payload.time,
+      });
+
+      closeAllModals();
+      await refreshCurrentRange();
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Failed to reschedule recurring classes"));
+    } finally {
+      setRescheduleLoading(false);
     }
   };
 
@@ -116,14 +293,67 @@ export default function TeacherPortalPage() {
             onEventClick={(lesson) => setSelectedLesson(lesson)}
           />
 
-          <LessonDetailsModal
+          <TeacherLessonActionsModal
             lesson={selectedLesson}
             timeZone={timeZone}
-            joinDisabled={false}
             joining={joiningLessonId === selectedLesson?._id}
-            onClose={() => setSelectedLesson(null)}
-            onJoin={handleJoin}
+            onClose={closeAllModals}
+            onJoin={() => {
+              void handleJoin();
+            }}
+            onDelete={startDeleteFlow}
+            onReschedule={startRescheduleFlow}
           />
+
+          <LessonRecurringChoiceModal
+            open={recurringChoiceOpen}
+            mode={recurringChoiceMode}
+            onClose={closeAllModals}
+            onChooseSingle={handleChooseRecurringSingle}
+            onChooseSeries={handleChooseRecurringSeries}
+          />
+
+          <ConfirmActionModal
+            open={confirmDeleteOpen}
+            title="Are you sure?"
+            description={
+              pendingDeleteMode === "series"
+                ? "This will delete all future classes in the recurring series."
+                : "This will delete this class."
+            }
+            confirmLabel={
+              pendingDeleteMode === "series" ? "Delete all future classes" : "Delete class"
+            }
+            loading={deleteLoading}
+            onClose={closeAllModals}
+            onConfirm={() => {
+              void handleDeleteConfirm();
+            }}
+          />
+
+          <RescheduleSingleModal
+            open={rescheduleSingleOpen}
+            lesson={selectedLesson}
+            loading={rescheduleLoading}
+            onClose={closeAllModals}
+            onSubmit={(payload) => {
+              void handleSingleReschedule(payload);
+            }}
+          />
+
+          <RescheduleSeriesModal
+            open={rescheduleSeriesOpen}
+            lesson={selectedLesson}
+            loading={rescheduleLoading}
+            onClose={closeAllModals}
+            onSubmit={(payload) => {
+              void handleSeriesReschedule(payload);
+            }}
+          />
+
+          <div className="text-sm text-gray-500">
+            Times shown in your browser time zone: {timeZone}
+          </div>
         </div>
       </PortalShell>
     </PortalGuard>

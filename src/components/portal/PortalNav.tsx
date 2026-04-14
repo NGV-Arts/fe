@@ -52,10 +52,13 @@ export default function PortalNav() {
 
               router.push(getPortalRouteForRole(currentUser.role));
             }}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-gray-100 transition hover:bg-gray-200"
             aria-label="Go to dashboard"
           >
-            {/* Placeholder logo */}
+            <img
+              src="/logo.png"
+              alt="Logo"
+              className="h-12 w-12 rounded-full object-cover"
+            />
           </button>
         </div>
 
@@ -87,6 +90,15 @@ export default function PortalNav() {
               >
                 Edit Profile
               </Link>
+              {user?.role === "teacher" || user?.role === "admin" ? (
+                <Link
+                  href="/portal/students"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Students
+                </Link>
+              ) : null}
               <button
                 type="button"
                 onClick={onLogout}

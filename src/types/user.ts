@@ -3,7 +3,7 @@ export type UserRole = "admin" | "teacher" | "student";
 export interface UserClassBalance {
   rate: number;
   currency: string;
-  paidFor: number;
+  classCycle: number;
   left: number;
 }
 
@@ -15,4 +15,5 @@ export interface AuthUser {
   role: UserRole;
   class?: UserClassBalance;
   attended?: number;
+  primaryTeacher?: string | null;
 }

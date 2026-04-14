@@ -87,7 +87,7 @@ export default function StudentPortalPage() {
           class: {
             rate: previousUser.class?.rate ?? 0,
             currency: previousUser.class?.currency ?? "USD",
-            paidFor: previousUser.class?.paidFor ?? 0,
+            classCycle: previousUser.class?.classCycle ?? 0,
             left: result.left,
           },
           attended: (previousUser.attended ?? 0) + 1,
@@ -150,10 +150,10 @@ export default function StudentPortalPage() {
               </div>
               <div className="rounded-xl bg-gray-50 p-4">
                 <p className="text-xs uppercase tracking-wide text-gray-500">
-                  Paid for
+                  Class cycle
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-gray-900">
-                  {user?.class?.paidFor ?? 0}
+                  {user?.class?.classCycle ?? 0}
                 </p>
               </div>
               <div className="rounded-xl bg-gray-50 p-4">

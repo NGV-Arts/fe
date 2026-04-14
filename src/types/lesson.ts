@@ -17,8 +17,19 @@ export interface Lesson {
   status: "scheduled" | "meeting_created" | "completed";
   teacherJoined?: boolean;
   joinedStudents?: string[];
+  countedStudents?: string[];
   teamsMeetingId?: string | null;
   teamsJoinUrl?: string | null;
   recurrenceId?: string | null;
   meetingStatus?: "pending" | "created" | "failed";
+}
+
+export interface PastLessonDetailsResponse {
+  lesson: Lesson;
+  attendance: {
+    teacherJoined: boolean;
+    joinedStudents: AuthUser[];
+    countedStudents: AuthUser[];
+  };
+  groupStudents: AuthUser[];
 }
