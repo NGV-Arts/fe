@@ -5,11 +5,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import PortalGuard from "@/components/auth/PortalGuard";
+import AddGroupModal from "@/components/portal/AddGroupModal";
 import EditGroupModal from "@/components/portal/EditGroupModal";
 import EditStudentModal from "@/components/portal/EditStudentModal";
 import PortalShell from "@/components/portal/PortalShell";
 import { triggerForgotPasswordEmail } from "@/lib/api/auth";
-import { deleteGroup, fetchMyGroups, updateGroup } from "@/lib/api/groups";
+import {
+  createGroup,
+  deleteGroup,
+  fetchMyGroups,
+  updateGroup,
+} from "@/lib/api/groups";
 import {
   deleteStudent,
   fetchMyStudents,
@@ -17,6 +23,7 @@ import {
   updateStudentProfile,
 } from "@/lib/api/users";
 import { getUser } from "@/lib/auth/session";
+import { getGroupDisplayName } from "@/lib/utils/group-display";
 import { Group } from "@/types/group";
 import { AuthUser } from "@/types/user";
 
@@ -62,12 +69,14 @@ export default function StudentsPage() {
   const [loadingGroups, setLoadingGroups] = useState(true);
 
   const [saveLoading, setSaveLoading] = useState(false);
+  const [createGroupLoading, setCreateGroupLoading] = useState(false);
   const [groupSaveLoading, setGroupSaveLoading] = useState(false);
   const [groupDeleteLoading, setGroupDeleteLoading] = useState(false);
   const [deleteStudentLoading, setDeleteStudentLoading] = useState(false);
 
   const [selectedStudent, setSelectedStudent] = useState<AuthUser | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
 
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
@@ -174,8 +183,13 @@ export default function StudentsPage() {
     const query = search.trim().toLowerCase();
     if (!query) return groups;
 
-    return groups.filter((group) =>
-      (group.students ?? []).some((student) => {
+    return groups.filter((group) => {
+      const groupName = group.name?.trim().toLowerCase() ?? "";
+      if (groupName.includes(query)) {
+        return true;
+      }
+
+      return (group.students ?? []).some((student) => {
         const fullName = `${student.firstName ?? ""} ${
           student.lastName ?? ""
         }`
@@ -183,8 +197,8 @@ export default function StudentsPage() {
           .toLowerCase();
         const email = (student.email ?? "").toLowerCase();
         return fullName.includes(query) || email.includes(query);
-      }),
-    );
+      });
+    });
   }, [groups, search]);
 
   const handleSaveStudent = async (payload: {
@@ -340,6 +354,40 @@ export default function StudentsPage() {
     }
   };
 
+  const handleCreateGroup = async (payload: {
+    name?: string;
+    studentIds: string[];
+  }) => {
+    try {
+      setCreateGroupLoading(true);
+      setError(null);
+
+      await createGroup({
+        name: payload.name,
+        students: payload.studentIds,
+      });
+
+      setAddGroupOpen(false);
+      await loadGroups();
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as
+          | { message?: string | string[] }
+          | undefined;
+        const rawMessage = data?.message;
+        const message = Array.isArray(rawMessage)
+          ? rawMessage.join(", ")
+          : rawMessage || "Failed to create group";
+
+        setError(message);
+      } else {
+        setError("Failed to create group");
+      }
+    } finally {
+      setCreateGroupLoading(false);
+    }
+  };
+
   const handleDeleteGroup = async (group: Group) => {
     try {
       setGroupDeleteLoading(true);
@@ -440,6 +488,14 @@ export default function StudentsPage() {
                       >
                         Add student
                       </Link>
+                    ) : isTeacher ? (
+                      <button
+                        type="button"
+                        onClick={() => setAddGroupOpen(true)}
+                        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                      >
+                        Add group
+                      </button>
                     ) : null}
 
                     <div className="w-full md:w-72">
@@ -537,7 +593,7 @@ export default function StudentsPage() {
                           >
                             <div className="min-w-0">
                               <p className="font-medium text-gray-900">
-                                {group.name?.trim() || "Untitled group"}
+                                {getGroupDisplayName(group)}
                               </p>
                               <p className="mt-2 text-sm text-gray-600">
                                 Students: {getGroupStudentList(group)}
@@ -591,6 +647,14 @@ export default function StudentsPage() {
           onClose={() => setSelectedGroup(null)}
           onSave={handleSaveGroup}
           onDelete={handleDeleteGroup}
+        />
+
+        <AddGroupModal
+          open={addGroupOpen}
+          allStudents={students}
+          loading={createGroupLoading}
+          onClose={() => setAddGroupOpen(false)}
+          onCreate={handleCreateGroup}
         />
       </PortalShell>
     </PortalGuard>

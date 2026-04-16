@@ -14,6 +14,7 @@ export interface Lesson {
   groupClass: boolean;
   startTime: string;
   endTime: string;
+  timezone?: string | null;
   status: "scheduled" | "meeting_created" | "completed";
   teacherJoined?: boolean;
   joinedStudents?: string[];

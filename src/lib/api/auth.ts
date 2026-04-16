@@ -36,3 +36,19 @@ export async function triggerForgotPasswordEmail(payload: {
 
   return response.data;
 }
+
+export async function resetPasswordWithCode(params: {
+  code: string;
+  email: string;
+  newPassword: string;
+}): Promise<{ success?: boolean; message?: string }> {
+  const response = await apiClient.post<{
+    success?: boolean;
+    message?: string;
+  }>(`/auth/forgot/${encodeURIComponent(params.code)}`, {
+    email: params.email,
+    newPassword: params.newPassword,
+  });
+
+  return response.data;
+}

@@ -26,6 +26,19 @@ export async function fetchPastLessonDetails(
   return response.data;
 }
 
+export async function createLesson(payload: {
+  groupClass: boolean;
+  studentId?: string;
+  groupId?: string;
+  date: string;
+  time: string;
+  timezone: string;
+  durationMinutes: number;
+}): Promise<Lesson> {
+  const response = await apiClient.post<Lesson>("/lessons", payload);
+  return response.data;
+}
+
 export async function joinStudentLesson(
   lessonId: string,
 ): Promise<{ success: true; left: number }> {

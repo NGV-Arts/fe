@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 import PortalGuard from "@/components/auth/PortalGuard";
+import AddClassModal from "@/components/portal/AddClassModal";
 import ConfirmActionModal from "@/components/portal/ConfirmActionModal";
 import LessonRecurringChoiceModal from "@/components/portal/LessonRecurringChoiceModal";
 import LessonsCalendar from "@/components/portal/LessonsCalendar";
@@ -11,15 +12,20 @@ import PortalShell from "@/components/portal/PortalShell";
 import RescheduleSeriesModal from "@/components/portal/RescheduleSeriesModal";
 import RescheduleSingleModal from "@/components/portal/RescheduleSingleModal";
 import TeacherLessonActionsModal from "@/components/portal/TeacherLessonActionsModal";
+import { fetchMyGroups } from "@/lib/api/groups";
 import {
+  createLesson,
   deleteLesson,
   fetchMyLessonsInRange,
   joinTeacherLesson,
   rescheduleRecurringLessons,
   rescheduleSingleLesson,
 } from "@/lib/api/lessons";
+import { fetchMyStudents } from "@/lib/api/users";
 import { getBrowserTimeZone } from "@/lib/utils/datetime";
+import { Group } from "@/types/group";
 import { Lesson } from "@/types/lesson";
+import { AuthUser } from "@/types/user";
 
 type PendingDeleteMode = "single" | "series" | null;
 type PendingRescheduleMode = "single" | "series" | null;
@@ -48,7 +54,11 @@ export default function TeacherPortalPage() {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [timeZone, setTimeZone] = useState("UTC");
+  const [students, setStudents] = useState<AuthUser[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [lastRange, setLastRange] = useState<{ start: string; end: string } | null>(null);
+  const [addClassOpen, setAddClassOpen] = useState(false);
+  const [createClassLoading, setCreateClassLoading] = useState(false);
 
   const [recurringChoiceOpen, setRecurringChoiceOpen] = useState(false);
   const [recurringChoiceMode, setRecurringChoiceMode] = useState<"delete" | "reschedule">("delete");
@@ -66,8 +76,26 @@ export default function TeacherPortalPage() {
     setTimeZone(getBrowserTimeZone());
   }, []);
 
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const [studentsData, groupsData] = await Promise.all([
+          fetchMyStudents(),
+          fetchMyGroups(),
+        ]);
+        setStudents(studentsData);
+        setGroups(groupsData);
+      } catch {
+        // Keep the calendar usable even if selector options fail to load.
+      }
+    };
+
+    void loadOptions();
+  }, []);
+
   const closeAllModals = () => {
     setSelectedLesson(null);
+    setAddClassOpen(false);
     setRecurringChoiceOpen(false);
     setConfirmDeleteOpen(false);
     setRescheduleSingleOpen(false);
@@ -127,6 +155,30 @@ export default function TeacherPortalPage() {
       setError(getApiErrorMessage(error, "Failed to join class"));
     } finally {
       setJoiningLessonId(null);
+    }
+  };
+
+  const handleCreateClass = async (payload: {
+    groupClass: boolean;
+    studentId?: string;
+    groupId?: string;
+    date: string;
+    time: string;
+    timezone: string;
+    durationMinutes: number;
+  }) => {
+    try {
+      setCreateClassLoading(true);
+      setError(null);
+
+      await createLesson(payload);
+
+      setAddClassOpen(false);
+      await refreshCurrentRange();
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Failed to create class"));
+    } finally {
+      setCreateClassLoading(false);
     }
   };
 
@@ -284,14 +336,26 @@ export default function TeacherPortalPage() {
             </div>
           ) : null}
 
-          <LessonsCalendar
-            lessons={lessons}
-            viewerRole="teacher"
-            onRangeChange={({ start, end }) => {
-              void loadRange(start, end);
-            }}
-            onEventClick={(lesson) => setSelectedLesson(lesson)}
-          />
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAddClassOpen(true)}
+                className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Add class
+              </button>
+            </div>
+
+            <LessonsCalendar
+              lessons={lessons}
+              viewerRole="teacher"
+              onRangeChange={({ start, end }) => {
+                void loadRange(start, end);
+              }}
+              onEventClick={(lesson) => setSelectedLesson(lesson)}
+            />
+          </div>
 
           <TeacherLessonActionsModal
             lesson={selectedLesson}
@@ -348,6 +412,17 @@ export default function TeacherPortalPage() {
             onClose={closeAllModals}
             onSubmit={(payload) => {
               void handleSeriesReschedule(payload);
+            }}
+          />
+
+          <AddClassModal
+            open={addClassOpen}
+            students={students}
+            groups={groups}
+            loading={createClassLoading}
+            onClose={() => setAddClassOpen(false)}
+            onCreate={(payload) => {
+              void handleCreateClass(payload);
             }}
           />
 

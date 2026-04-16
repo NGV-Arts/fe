@@ -3,8 +3,18 @@
 import { useEffect, useState } from "react";
 
 import { fetchPastLessonDetails } from "@/lib/api/lessons";
-import { formatLessonDateTime } from "@/lib/utils/datetime";
+import {
+  formatLessonDateTime,
+  formatViewerAndSavedTimeRange,
+} from "@/lib/utils/datetime";
+import {
+  getGroupDisplayName,
+  getGroupStudentFirstNames,
+  getStudentFullName,
+} from "@/lib/utils/group-display";
+import { Group } from "@/types/group";
 import { Lesson, PastLessonDetailsResponse } from "@/types/lesson";
+import { AuthUser } from "@/types/user";
 
 type Props = {
   lesson: Lesson | null;
@@ -23,6 +33,20 @@ function getTeacherName(lesson: Lesson): string {
     return full || lesson.teacher.email || "Teacher";
   }
   return "Teacher";
+}
+
+function getLessonGroup(lesson: Lesson): Group | null {
+  if (lesson.group && typeof lesson.group === "object") {
+    return lesson.group as Group;
+  }
+  return null;
+}
+
+function getLessonStudent(lesson: Lesson): AuthUser | null {
+  if (lesson.student && typeof lesson.student === "object") {
+    return lesson.student as AuthUser;
+  }
+  return null;
 }
 
 function getUserDisplayName(user: {
@@ -90,7 +114,20 @@ export default function LessonDetailsModal({
 
   if (!lesson) return null;
 
+  const timeRangeDisplay = formatViewerAndSavedTimeRange({
+    startIso: lesson.startTime,
+    endIso: lesson.endTime,
+    savedTimeZone: lesson.timezone,
+    viewerTimeZone: timeZone,
+  });
+  const lessonGroup = getLessonGroup(lesson);
+  const lessonStudent = getLessonStudent(lesson);
   const isPastLesson = new Date(lesson.startTime).getTime() < Date.now();
+  const modalTitle = lesson.groupClass
+    ? lessonGroup?.name?.trim()
+      ? getGroupDisplayName(lessonGroup)
+      : "Lesson details"
+    : getStudentFullName(lessonStudent);
   const teacherJoined =
     pastDetails?.attendance.teacherJoined ?? lesson.teacherJoined ?? false;
   const attendanceNames =
@@ -105,11 +142,11 @@ export default function LessonDetailsModal({
       <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Lesson details
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900">{modalTitle}</h2>
             <p className="mt-1 text-sm text-gray-600">
-              {lesson.groupClass ? "Group class" : "Individual class"}
+              {lesson.groupClass
+                ? getGroupStudentFirstNames(lessonGroup)
+                : "Individual class"}
             </p>
           </div>
 
@@ -128,12 +165,12 @@ export default function LessonDetailsModal({
             {getTeacherName(lesson)}
           </div>
           <div>
-            <span className="font-medium text-gray-900">Start:</span>{" "}
-            {formatLessonDateTime(lesson.startTime, timeZone)}
+            <span className="font-medium text-gray-900">Time:</span>{" "}
+            {timeRangeDisplay}
           </div>
           <div>
-            <span className="font-medium text-gray-900">End:</span>{" "}
-            {formatLessonDateTime(lesson.endTime, timeZone)}
+            <span className="font-medium text-gray-900">Date:</span>{" "}
+            {formatLessonDateTime(lesson.startTime, timeZone)}
           </div>
           <div>
             <span className="font-medium text-gray-900">Meeting status:</span>{" "}

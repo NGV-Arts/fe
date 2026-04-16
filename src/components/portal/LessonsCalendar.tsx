@@ -5,6 +5,11 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 
+import {
+  getGroupDisplayName,
+  getStudentFullName,
+} from "@/lib/utils/group-display";
+import { Group } from "@/types/group";
 import { Lesson } from "@/types/lesson";
 import { AuthUser } from "@/types/user";
 
@@ -17,63 +22,50 @@ type Props = {
   onEventClick: (lesson: Lesson) => void;
 };
 
-function getPersonName(
-  user: AuthUser | string | null | undefined,
-  fallback: string,
-): string {
-  if (user && typeof user === "object") {
-    const first = user.firstName ?? "";
-    const last = user.lastName ?? "";
-    const full = `${first} ${last}`.trim();
-    return full || user.email || fallback;
-  }
-
-  return fallback;
-}
-
 function getTeacherName(lesson: Lesson): string {
-  return getPersonName(lesson.teacher, "Teacher");
+  if (lesson.teacher && typeof lesson.teacher === "object") {
+    const first = lesson.teacher.firstName ?? "";
+    const last = lesson.teacher.lastName ?? "";
+    const full = `${first} ${last}`.trim();
+    return full || lesson.teacher.email || "Teacher";
+  }
+  return "Teacher";
 }
 
-function getStudentName(lesson: Lesson): string {
-  return getPersonName(lesson.student, "Student");
+function getLessonGroup(lesson: Lesson): Group | null {
+  if (lesson.group && typeof lesson.group === "object") {
+    return lesson.group as Group;
+  }
+  return null;
 }
 
-function getGroupStudentNames(lesson: Lesson): string {
-  if (!lesson.group || typeof lesson.group === "string") {
-    return "Group";
+function getLessonStudent(lesson: Lesson): AuthUser | null {
+  if (lesson.student && typeof lesson.student === "object") {
+    return lesson.student as AuthUser;
   }
-
-  const students = lesson.group.students ?? [];
-  const names = students
-    .map((student) => getPersonName(student, "Student"))
-    .filter(Boolean);
-
-  if (names.length === 0) {
-    return lesson.group.name || "Group";
-  }
-
-  return names.join(", ");
+  return null;
 }
 
 function getEventTitle(lesson: Lesson, viewerRole: ViewerRole): string {
+  const group = getLessonGroup(lesson);
+  const student = getLessonStudent(lesson);
+
   if (viewerRole === "student") {
     return getTeacherName(lesson);
   }
 
   if (viewerRole === "teacher") {
     if (lesson.groupClass) {
-      return getGroupStudentNames(lesson);
+      return getGroupDisplayName(group);
     }
-
-    return getStudentName(lesson);
+    return getStudentFullName(student);
   }
 
   if (lesson.groupClass) {
-    return `${getTeacherName(lesson)} · ${getGroupStudentNames(lesson)}`;
+    return getGroupDisplayName(group);
   }
 
-  return `${getTeacherName(lesson)} · ${getStudentName(lesson)}`;
+  return getStudentFullName(student);
 }
 
 export default function LessonsCalendar({
