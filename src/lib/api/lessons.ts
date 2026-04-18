@@ -74,13 +74,19 @@ export async function deleteLesson(params: {
 
 export async function rescheduleSingleLesson(params: {
   lessonId: string;
-  newStartTime: string;
+  newDate: string;
+  newTime: string;
+  timezone: string;
+  durationMinutes: number;
 }): Promise<{ affectedLessonIds: string[] }> {
   const response = await apiClient.patch<{ affectedLessonIds: string[] }>(
     `/lessons/${params.lessonId}/reschedule`,
     {
       scope: "single",
-      newStartTime: params.newStartTime,
+      newDate: params.newDate,
+      newTime: params.newTime,
+      timezone: params.timezone,
+      durationMinutes: params.durationMinutes,
     },
   );
   return response.data;
@@ -96,14 +102,18 @@ export async function rescheduleRecurringLessons(params: {
     | "thursday"
     | "friday"
     | "saturday";
-  newTimeGMT: string;
+  newTime: string;
+  timezone: string;
+  durationMinutes: number;
 }): Promise<{ affectedLessonIds: string[] }> {
   const response = await apiClient.patch<{ affectedLessonIds: string[] }>(
     `/lessons/${params.recurrenceId}/reschedule`,
     {
       scope: "series",
       newDayOfWeek: params.newDayOfWeek,
-      newTimeGMT: params.newTimeGMT,
+      newTime: params.newTime,
+      timezone: params.timezone,
+      durationMinutes: params.durationMinutes,
     },
   );
   return response.data;

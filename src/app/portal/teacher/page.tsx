@@ -258,35 +258,38 @@ export default function TeacherPortalPage() {
     }
   };
 
-  const handleSingleReschedule = async (payload: {
+  const handleSingleRescheduleSubmit = async (payload: {
     date: string;
     time: string;
+    timezone: string;
+    durationMinutes: number;
   }) => {
-    if (!selectedLesson || !pendingRescheduleMode) return;
+    if (!selectedLesson) return;
 
     try {
       setRescheduleLoading(true);
       setError(null);
 
-      const newStartTime = new Date(
-        `${payload.date}T${payload.time}`,
-      ).toISOString();
-
       await rescheduleSingleLesson({
         lessonId: selectedLesson._id,
-        newStartTime,
+        newDate: payload.date,
+        newTime: payload.time,
+        timezone: payload.timezone,
+        durationMinutes: payload.durationMinutes,
       });
 
-      closeAllModals();
+      setRescheduleSingleOpen(false);
+      setSelectedLesson(null);
+      setPendingRescheduleMode(null);
       await refreshCurrentRange();
     } catch (error) {
-      setError(getApiErrorMessage(error, "Failed to reschedule class"));
+      setError(getApiErrorMessage(error, "Failed to reschedule lesson"));
     } finally {
       setRescheduleLoading(false);
     }
   };
 
-  const handleSeriesReschedule = async (payload: {
+  const handleSeriesRescheduleSubmit = async (payload: {
     day:
       | "sunday"
       | "monday"
@@ -296,10 +299,10 @@ export default function TeacherPortalPage() {
       | "friday"
       | "saturday";
     time: string;
+    timezone: string;
+    durationMinutes: number;
   }) => {
-    if (!selectedLesson?.recurrenceId || pendingRescheduleMode !== "series") {
-      return;
-    }
+    if (!selectedLesson?.recurrenceId) return;
 
     try {
       setRescheduleLoading(true);
@@ -308,13 +311,19 @@ export default function TeacherPortalPage() {
       await rescheduleRecurringLessons({
         recurrenceId: selectedLesson.recurrenceId,
         newDayOfWeek: payload.day,
-        newTimeGMT: payload.time,
+        newTime: payload.time,
+        timezone: payload.timezone,
+        durationMinutes: payload.durationMinutes,
       });
 
-      closeAllModals();
+      setRescheduleSeriesOpen(false);
+      setSelectedLesson(null);
+      setPendingRescheduleMode(null);
       await refreshCurrentRange();
     } catch (error) {
-      setError(getApiErrorMessage(error, "Failed to reschedule recurring classes"));
+      setError(
+        getApiErrorMessage(error, "Failed to reschedule recurring lessons"),
+      );
     } finally {
       setRescheduleLoading(false);
     }
@@ -401,7 +410,7 @@ export default function TeacherPortalPage() {
             loading={rescheduleLoading}
             onClose={closeAllModals}
             onSubmit={(payload) => {
-              void handleSingleReschedule(payload);
+              void handleSingleRescheduleSubmit(payload);
             }}
           />
 
@@ -411,7 +420,7 @@ export default function TeacherPortalPage() {
             loading={rescheduleLoading}
             onClose={closeAllModals}
             onSubmit={(payload) => {
-              void handleSeriesReschedule(payload);
+              void handleSeriesRescheduleSubmit(payload);
             }}
           />
 
