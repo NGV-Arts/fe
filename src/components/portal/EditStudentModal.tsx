@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AuthUser } from "@/types/user";
 import ConfirmActionModal from "./ConfirmActionModal";
@@ -25,6 +25,7 @@ type Props = {
   }) => void;
   onSendReset: (student: AuthUser) => void;
   onDelete: (student: AuthUser) => void;
+  onViewInvoices: (student: AuthUser) => void;
 };
 
 export default function EditStudentModal({
@@ -39,29 +40,57 @@ export default function EditStudentModal({
   onSave,
   onSendReset,
   onDelete,
+  onViewInvoices,
 }: Props) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [rate, setRate] = useState<number>(0);
-  const [currency, setCurrency] = useState("USD");
-  const [classCycle, setClassCycle] = useState<number>(0);
-  const [classesToAdd, setClassesToAdd] = useState<number>(0);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-
-  useEffect(() => {
-    if (!student) return;
-
-    setFirstName(student.firstName ?? "");
-    setLastName(student.lastName ?? "");
-    setEmail(student.email ?? "");
-    setRate(student.class?.rate ?? 0);
-    setCurrency(student.class?.currency ?? "USD");
-    setClassCycle(student.class?.classCycle ?? 0);
-    setClassesToAdd(student.class?.classCycle ?? 0);
-  }, [student]);
-
   if (!open || !student) return null;
+
+  return (
+    <EditStudentModalDialog
+      key={student._id}
+      student={student}
+      loading={loading}
+      resetLoading={resetLoading}
+      resetSuccess={resetSuccess}
+      resetError={resetError}
+      deleteLoading={deleteLoading}
+      onClose={onClose}
+      onSave={onSave}
+      onSendReset={onSendReset}
+      onDelete={onDelete}
+      onViewInvoices={onViewInvoices}
+    />
+  );
+}
+
+type DialogProps = Omit<Props, "student" | "open"> & {
+  student: AuthUser;
+};
+
+function EditStudentModalDialog({
+  student,
+  loading = false,
+  resetLoading = false,
+  resetSuccess = null,
+  resetError = null,
+  deleteLoading = false,
+  onClose,
+  onSave,
+  onSendReset,
+  onDelete,
+  onViewInvoices,
+}: DialogProps) {
+  const [firstName, setFirstName] = useState(student.firstName ?? "");
+  const [lastName, setLastName] = useState(student.lastName ?? "");
+  const [email, setEmail] = useState(student.email ?? "");
+  const [rate, setRate] = useState<number>(student.class?.rate ?? 0);
+  const [currency, setCurrency] = useState(student.class?.currency ?? "USD");
+  const [classCycle, setClassCycle] = useState<number>(
+    student.class?.classCycle ?? 0,
+  );
+  const [classesToAdd, setClassesToAdd] = useState<number>(
+    student.class?.classCycle ?? 0,
+  );
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const handleClose = () => {
     setConfirmDeleteOpen(false);
@@ -223,6 +252,14 @@ export default function EditStudentModal({
               className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
             >
               {deleteLoading ? "Deleting..." : "Delete student"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onViewInvoices(student)}
+              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            >
+              View Invoices
             </button>
 
             <div className="flex flex-1 gap-3">

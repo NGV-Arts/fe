@@ -3,6 +3,7 @@
 import axios from "axios";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import PortalGuard from "@/components/auth/PortalGuard";
 import AddGroupModal from "@/components/portal/AddGroupModal";
@@ -58,6 +59,7 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function StudentsPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [activeTab, setActiveTab] = useState<StudentsTab>("students");
 
@@ -636,6 +638,12 @@ export default function StudentsPage() {
           onSave={handleSaveStudent}
           onSendReset={handleSendReset}
           onDelete={handleDeleteStudent}
+          onViewInvoices={(student) => {
+            setSelectedStudent(null);
+            setResetSuccess(null);
+            setResetError(null);
+            router.push(`/portal/students/${student._id}/invoices`);
+          }}
         />
 
         <EditGroupModal

@@ -20,6 +20,11 @@ export async function fetchMyStudents(params?: {
   return response.data;
 }
 
+export async function fetchStudentById(userId: string): Promise<AuthUser> {
+  const response = await apiClient.get<AuthUser>(`/users/${userId}`);
+  return response.data;
+}
+
 export async function createStudent(payload: {
   firstName: string;
   lastName: string;

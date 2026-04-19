@@ -209,21 +209,25 @@ export default function TeacherLessonActionsModal({
             {joining ? "Joining..." : "Join"}
           </button>
 
-          <button
-            type="button"
-            onClick={onReschedule}
-            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-          >
-            Reschedule lesson
-          </button>
+          {!isPastLesson ? (
+            <>
+              <button
+                type="button"
+                onClick={onReschedule}
+                className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+              >
+                Reschedule lesson
+              </button>
 
-          <button
-            type="button"
-            onClick={onDelete}
-            className="w-full rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-          >
-            Delete lesson
-          </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                className="w-full rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Delete lesson
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
     </div>
