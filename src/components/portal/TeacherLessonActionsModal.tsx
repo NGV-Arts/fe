@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { getApiErrorMessage } from "@/lib/utils/api-error";
 import { fetchPastLessonDetails } from "@/lib/api/lessons";
 import {
   formatLessonDateTime,
@@ -20,10 +21,12 @@ type Props = {
   lesson: Lesson | null;
   timeZone: string;
   onClose: () => void;
-  onJoin: () => void;
+  onJoin?: (lesson: Lesson) => void;
+  showTeamsLink?: boolean;
   onDelete: () => void;
   onReschedule: () => void;
-  joining: boolean;
+  joining?: boolean;
+  error?: string | null;
 };
 
 function getTeacherName(lesson: Lesson): string {
@@ -68,16 +71,21 @@ export default function TeacherLessonActionsModal({
   onJoin,
   onDelete,
   onReschedule,
-  joining,
+  joining = false,
+  showTeamsLink = false,
+  error,
 }: Props) {
   const [pastDetails, setPastDetails] =
     useState<PastLessonDetailsResponse | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadPastDetails = async () => {
+      setPastDetails(null);
+      setDetailsError(null);
       if (!lesson) {
         setPastDetails(null);
         return;
@@ -96,9 +104,12 @@ export default function TeacherLessonActionsModal({
         if (!cancelled) {
           setPastDetails(data);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setPastDetails(null);
+          setDetailsError(
+            getApiErrorMessage(error, "Unable to load attendance."),
+          );
         }
       } finally {
         if (!cancelled) {
@@ -141,10 +152,17 @@ export default function TeacherLessonActionsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Lesson details"
+        className="max-h-[90vh] overflow-y-auto w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl"
+      >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">{modalTitle}</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {modalTitle}
+            </h2>
             <p className="mt-1 text-sm text-gray-600">
               {lesson.groupClass
                 ? getGroupStudentFirstNames(lessonGroup)
@@ -155,7 +173,7 @@ export default function TeacherLessonActionsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            className="rounded-md border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
             Close
           </button>
@@ -176,10 +194,34 @@ export default function TeacherLessonActionsModal({
           </div>
           <div>
             <span className="font-medium text-gray-900">Meeting status:</span>{" "}
-            {lesson.meetingStatus ?? "pending"}
+            {lesson.meetingStatus ?? "Not provided"}
           </div>
 
-          {isPastLesson ? (
+          <div>
+            <span className="font-medium text-gray-900">Timezone:</span>{" "}
+            {lesson.timezone || "Not provided"} · Viewing in {timeZone}
+          </div>
+          {showTeamsLink && (
+            <div>
+              <span className="font-medium text-gray-900">Teams:</span>{" "}
+              {lesson.teamsJoinUrl ? (
+                <a
+                  className="font-medium text-red-700 underline break-all"
+                  href={lesson.teamsJoinUrl}
+                >
+                  Open Teams meeting
+                </a>
+              ) : (
+                "No meeting link available"
+              )}
+            </div>
+          )}
+          {detailsError && (
+            <p role="alert" className="text-red-800">
+              {detailsError}
+            </p>
+          )}
+          {isPastLesson && !detailsError ? (
             detailsLoading ? (
               <div className="text-sm text-gray-600">Loading attendance...</div>
             ) : (
@@ -200,21 +242,28 @@ export default function TeacherLessonActionsModal({
         </div>
 
         <div className="mt-6 space-y-3">
-          <button
-            type="button"
-            onClick={onJoin}
-            disabled={joining}
-            className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {joining ? "Joining..." : "Join"}
-          </button>
+          {error ? (
+            <p role="alert" className="mb-3 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+          {onJoin && (
+            <button
+              type="button"
+              onClick={() => onJoin(lesson)}
+              disabled={joining}
+              className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {joining ? "Joining..." : "Join"}
+            </button>
+          )}
 
           {!isPastLesson ? (
             <>
               <button
                 type="button"
                 onClick={onReschedule}
-                className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90"
               >
                 Reschedule lesson
               </button>

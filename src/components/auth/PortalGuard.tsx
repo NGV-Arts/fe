@@ -1,52 +1,49 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-
+import { useEffect, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import {
   getPortalRouteForRole,
-  getUser,
-  isAuthenticated,
+  getSessionSnapshot,
+  subscribeSession,
 } from "@/lib/auth/session";
-import { UserRole } from "@/types/user";
-
-type Props = {
+import { AuthUser, UserRole } from "@/types/user";
+const serverSession = () => null;
+export default function PortalGuard({
+  children,
+  allowedRoles,
+}: {
   children: React.ReactNode;
   allowedRoles?: UserRole[];
-};
-
-export default function PortalGuard({ children, allowedRoles }: Props) {
+}) {
   const router = useRouter();
-  const pathname = usePathname();
-  const [ready, setReady] = useState(false);
-
+  const snapshot = useSyncExternalStore(
+    subscribeSession,
+    getSessionSnapshot,
+    serverSession,
+  );
+  const user: AuthUser | null = snapshot
+    ? (JSON.parse(snapshot) as AuthUser)
+    : null;
+  const permitted =
+    !!user && (!allowedRoles || allowedRoles.includes(user.role));
+  const destination =
+    snapshot === null
+      ? null
+      : !user
+        ? "/login"
+        : !permitted
+          ? getPortalRouteForRole(user.role)
+          : null;
   useEffect(() => {
-    const authed = isAuthenticated();
-    const user = getUser();
-
-    if (!authed || !user) {
-      router.replace("/login");
-      return;
-    }
-
-    if (allowedRoles && !allowedRoles.includes(user.role)) {
-      const correctRoute = getPortalRouteForRole(user.role);
-      if (pathname !== correctRoute) {
-        router.replace(correctRoute);
-        return;
-      }
-    }
-
-    setReady(true);
-  }, [allowedRoles, pathname, router]);
-
-  if (!ready) {
+    if (destination) router.replace(destination);
+  }, [destination, router]);
+  if (!permitted)
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-500">Loading...</p>
+        <p role="status" className="text-sm text-gray-700">
+          Loading…
+        </p>
       </div>
     );
-  }
-
   return <>{children}</>;
 }

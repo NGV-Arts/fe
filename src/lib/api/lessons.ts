@@ -2,6 +2,32 @@ import { Lesson, PastLessonDetailsResponse } from "@/types/lesson";
 
 import { apiClient } from "./client";
 
+type JoinMeetingResponse = {
+  teamsJoinUrl?: string | null;
+  lesson: Lesson;
+};
+
+type StudentJoinResponse = JoinMeetingResponse & {
+  success: true;
+  left: number;
+  attended: number;
+};
+type TeacherJoinResponse = JoinMeetingResponse & {
+  success: true;
+  teacherJoined: true;
+};
+
+export function getJoinedLessonUpdate(lesson: Lesson) {
+  // Retain populated teacher/student/group details already loaded by the calendar.
+  return {
+    meetingStatus: lesson.meetingStatus,
+    teacherJoined: lesson.teacherJoined,
+    joinedStudents: lesson.joinedStudents,
+    countedStudents: lesson.countedStudents,
+    teamsJoinUrl: lesson.teamsJoinUrl,
+  };
+}
+
 export async function fetchMyFutureLessons(): Promise<Lesson[]> {
   const response = await apiClient.get<Lesson[]>("/lessons/me/future");
   return response.data;
@@ -41,8 +67,8 @@ export async function createLesson(payload: {
 
 export async function joinStudentLesson(
   lessonId: string,
-): Promise<{ success: true; left: number }> {
-  const response = await apiClient.post<{ success: true; left: number }>(
+): Promise<StudentJoinResponse> {
+  const response = await apiClient.post<StudentJoinResponse>(
     `/lessons/${lessonId}/join/student`,
   );
   return response.data;
@@ -50,8 +76,8 @@ export async function joinStudentLesson(
 
 export async function joinTeacherLesson(
   lessonId: string,
-): Promise<{ success: true; teacherJoined: true }> {
-  const response = await apiClient.post<{ success: true; teacherJoined: true }>(
+): Promise<TeacherJoinResponse> {
+  const response = await apiClient.post<TeacherJoinResponse>(
     `/lessons/${lessonId}/join/teacher`,
   );
   return response.data;

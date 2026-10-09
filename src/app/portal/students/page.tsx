@@ -44,8 +44,7 @@ function getGroupStudentList(group: Group) {
 function getApiErrorMessage(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as
-      | { message?: string | string[] }
-      | undefined;
+      { message?: string | string[] } | undefined;
     const rawMessage = data?.message;
 
     if (Array.isArray(rawMessage)) {
@@ -171,9 +170,7 @@ export default function StudentsPage() {
     if (!query) return students;
 
     return students.filter((student) => {
-      const fullName = `${student.firstName ?? ""} ${
-        student.lastName ?? ""
-      }`
+      const fullName = `${student.firstName ?? ""} ${student.lastName ?? ""}`
         .trim()
         .toLowerCase();
       const email = (student.email ?? "").toLowerCase();
@@ -192,9 +189,7 @@ export default function StudentsPage() {
       }
 
       return (group.students ?? []).some((student) => {
-        const fullName = `${student.firstName ?? ""} ${
-          student.lastName ?? ""
-        }`
+        const fullName = `${student.firstName ?? ""} ${student.lastName ?? ""}`
           .trim()
           .toLowerCase();
         const email = (student.email ?? "").toLowerCase();
@@ -304,8 +299,7 @@ export default function StudentsPage() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as
-          | { message?: string | string[] }
-          | undefined;
+          { message?: string | string[] } | undefined;
         const rawMessage = data?.message;
         const message = Array.isArray(rawMessage)
           ? rawMessage.join(", ")
@@ -340,8 +334,7 @@ export default function StudentsPage() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as
-          | { message?: string | string[] }
-          | undefined;
+          { message?: string | string[] } | undefined;
         const rawMessage = data?.message;
         const message = Array.isArray(rawMessage)
           ? rawMessage.join(", ")
@@ -374,8 +367,7 @@ export default function StudentsPage() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as
-          | { message?: string | string[] }
-          | undefined;
+          { message?: string | string[] } | undefined;
         const rawMessage = data?.message;
         const message = Array.isArray(rawMessage)
           ? rawMessage.join(", ")
@@ -402,8 +394,7 @@ export default function StudentsPage() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as
-          | { message?: string | string[] }
-          | undefined;
+          { message?: string | string[] } | undefined;
         const rawMessage = data?.message;
         const message = Array.isArray(rawMessage)
           ? rawMessage.join(", ")
@@ -422,7 +413,7 @@ export default function StudentsPage() {
   const isAdmin = currentUser?.role === "admin";
 
   return (
-    <PortalGuard allowedRoles={["teacher", "admin"]}>
+    <PortalGuard allowedRoles={["teacher"]}>
       <PortalShell title="Students">
         <div className="space-y-6">
           {error ? (

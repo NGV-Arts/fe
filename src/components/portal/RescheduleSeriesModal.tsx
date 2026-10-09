@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import TimezoneSelect, { type ITimezone } from "react-timezone-select";
 
-import { getBrowserTimeZone } from "@/lib/utils/datetime";
+import {
+  getBrowserTimeZone,
+  getLessonFormDateTime,
+} from "@/lib/utils/datetime";
 import { Lesson } from "@/types/lesson";
 
 type DayOfWeek =
@@ -49,7 +52,13 @@ function getTimeZoneValue(timezone: ITimezone): string {
   return typeof timezone === "string" ? timezone : timezone.value;
 }
 
-export default function RescheduleSeriesModal({
+export default function RescheduleSeriesModal(props: Props) {
+  return props.open && props.lesson ? (
+    <RescheduleSeriesModalDialog key={props.lesson?._id} {...props} />
+  ) : null;
+}
+
+function RescheduleSeriesModalDialog({
   open,
   lesson,
   loading = false,
@@ -58,34 +67,31 @@ export default function RescheduleSeriesModal({
 }: Props) {
   const initialDay = useMemo<DayOfWeek>(() => {
     if (!lesson) return "monday";
-    return DAY_OPTIONS[new Date(lesson.startTime).getUTCDay()];
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: lesson.timezone || getBrowserTimeZone(),
+      weekday: "long",
+    })
+      .format(new Date(lesson.startTime))
+      .toLowerCase() as DayOfWeek;
   }, [lesson]);
 
   const initialTime = useMemo(() => {
     if (!lesson) return "";
-    return new Date(lesson.startTime).toISOString().slice(11, 16);
+    return getLessonFormDateTime(
+      lesson.startTime,
+      lesson.timezone || getBrowserTimeZone(),
+    ).time;
   }, [lesson]);
 
-  const [day, setDay] = useState<DayOfWeek>("monday");
-  const [time, setTime] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [day, setDay] = useState<DayOfWeek>(initialDay);
+  const [time, setTime] = useState(initialTime);
+  const [durationMinutes, setDurationMinutes] = useState(
+    getInitialDurationMinutes(lesson),
+  );
   const [timezone, setTimezone] = useState<ITimezone>({
-    value: getBrowserTimeZone(),
-    label: getBrowserTimeZone(),
+    value: lesson?.timezone || getBrowserTimeZone(),
+    label: lesson?.timezone || getBrowserTimeZone(),
   });
-
-  useEffect(() => {
-    if (lesson) {
-      setDay(initialDay);
-      setTime(initialTime);
-      setDurationMinutes(getInitialDurationMinutes(lesson));
-      const nextTimeZone = lesson.timezone || getBrowserTimeZone();
-      setTimezone({
-        value: nextTimeZone,
-        label: nextTimeZone,
-      });
-    }
-  }, [lesson, initialDay, initialTime]);
 
   if (!open || !lesson) return null;
 

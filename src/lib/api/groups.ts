@@ -13,6 +13,7 @@ export async function fetchMyGroups(params?: {
 export async function createGroup(payload: {
   name?: string;
   students: string[];
+  primaryTeacherId?: string;
 }): Promise<Group> {
   const response = await apiClient.post<Group>("/groups", payload);
   return response.data;
@@ -23,6 +24,7 @@ export async function updateGroup(
   payload: {
     name?: string;
     students?: string[];
+    primaryTeacherId?: string;
   },
 ): Promise<Group> {
   const response = await apiClient.patch<Group>(`/groups/${groupId}`, payload);

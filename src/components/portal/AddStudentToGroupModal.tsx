@@ -8,6 +8,7 @@ type Props = {
   open: boolean;
   availableStudents: AuthUser[];
   loading?: boolean;
+  error?: string | null;
   onClose: () => void;
   onConfirm: (selectedStudentIds: string[]) => void;
 };
@@ -23,6 +24,7 @@ export default function AddStudentToGroupModal({
   open,
   availableStudents,
   loading = false,
+  error,
   onClose,
   onConfirm,
 }: Props) {
@@ -34,9 +36,7 @@ export default function AddStudentToGroupModal({
     if (!q) return availableStudents;
 
     return availableStudents.filter((student) => {
-      const fullName = `${student.firstName ?? ""} ${
-        student.lastName ?? ""
-      }`
+      const fullName = `${student.firstName ?? ""} ${student.lastName ?? ""}`
         .trim()
         .toLowerCase();
       const email = (student.email ?? "").toLowerCase();
@@ -62,13 +62,16 @@ export default function AddStudentToGroupModal({
 
   const handleConfirm = () => {
     onConfirm(selectedIds);
-    setSearch("");
-    setSelectedIds([]);
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add students to group"
+        className="max-h-[90vh] overflow-y-auto w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-xl"
+      >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
@@ -81,20 +84,26 @@ export default function AddStudentToGroupModal({
 
           <button
             type="button"
+            disabled={loading}
             onClick={handleClose}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            className="rounded-md border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
             Close
           </button>
         </div>
 
+        {error && (
+          <p role="alert" className="mb-4 text-sm text-red-800">
+            {error}
+          </p>
+        )}
         <div className="mb-4">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search students..."
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 outline-none focus:border-black focus:ring-2 focus:ring-black/10"
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-600 outline-none focus:border-black focus:ring-2 focus:ring-black/10"
           />
         </div>
 
@@ -119,7 +128,7 @@ export default function AddStudentToGroupModal({
                     <span className="font-medium text-gray-900">
                       {getStudentName(student)}
                     </span>
-                    <span className="text-gray-500">({student.email})</span>
+                    <span className="text-gray-700">({student.email})</span>
                   </label>
                 );
               })}
@@ -130,8 +139,9 @@ export default function AddStudentToGroupModal({
         <div className="mt-6 flex gap-3">
           <button
             type="button"
+            disabled={loading}
             onClick={handleClose}
-            className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            className="flex-1 rounded-md border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
             Cancel
           </button>

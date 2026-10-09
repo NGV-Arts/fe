@@ -6,15 +6,18 @@ const USER_KEY = "authUser";
 export function setSession(token: string, user: AuthUser) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  queueMicrotask(() => window.dispatchEvent(new Event("ngv-session")));
 }
 
 export function updateStoredUser(user: AuthUser) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  queueMicrotask(() => window.dispatchEvent(new Event("ngv-session")));
 }
 
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  queueMicrotask(() => window.dispatchEvent(new Event("ngv-session")));
 }
 
 export function getToken(): string | null {
@@ -54,4 +57,17 @@ export function getPortalRouteForRole(role: UserRole): string {
 
 export function isAuthenticated(): boolean {
   return !!getToken() && !!getUser();
+}
+
+export function subscribeSession(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener("ngv-session", callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("ngv-session", callback);
+  };
+}
+export function getSessionSnapshot(): string {
+  const user = getUser();
+  return getToken() && user ? JSON.stringify(user) : "";
 }

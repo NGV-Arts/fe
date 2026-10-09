@@ -22,7 +22,7 @@ export interface Lesson {
   teamsMeetingId?: string | null;
   teamsJoinUrl?: string | null;
   recurrenceId?: string | null;
-  meetingStatus?: "pending" | "created" | "failed";
+  meetingStatus?: "pending" | "created" | "failed" | "completed";
 }
 
 export interface PastLessonDetailsResponse {

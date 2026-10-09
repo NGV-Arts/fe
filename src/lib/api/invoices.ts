@@ -84,12 +84,14 @@ function normalizeInvoice(input: unknown): Invoice {
   const id = readString(record, ["_id", "id"]) ?? "";
   const status = normalizeStatus(record);
 
+  const invoiceDate =
+    readString(record, ["invoiceDate", "date", "issuedAt", "createdAt"]) ?? "";
+
   return {
     id,
     _id: id,
-    issuedAt:
-      readString(record, ["date", "issuedAt", "invoiceDate", "createdAt"]) ??
-      "",
+    issuedAt: invoiceDate,
+    invoiceDate,
     totalAmount:
       readNumber(record, [
         "totalAmount",
@@ -98,7 +100,7 @@ function normalizeInvoice(input: unknown): Invoice {
         "grandTotal",
         "total_amount",
       ]) ?? 0,
-    currency: readString(record, ["currency"]) ?? "USD",
+    currency: readString(record, ["currency"]) ?? "",
     status,
     paid: status === "paid",
     url:
@@ -116,9 +118,7 @@ function normalizeInvoiceCollection(input: unknown): Invoice[] {
   const nestedInvoices = record?.invoices;
 
   if (Array.isArray(nestedInvoices)) {
-    return nestedInvoices
-      .map(normalizeInvoice)
-      .filter((invoice) => invoice.id);
+    return nestedInvoices.map(normalizeInvoice).filter((invoice) => invoice.id);
   }
 
   return [];
@@ -127,10 +127,10 @@ function normalizeInvoiceCollection(input: unknown): Invoice[] {
 export async function fetchStudentInvoices(
   studentId: string,
 ): Promise<Invoice[]> {
-  const response = await apiClient.get<Invoice[]>(
+  const response = await apiClient.get<unknown>(
     `/invoices/student/${studentId}`,
   );
-  return response.data;
+  return normalizeInvoiceCollection(response.data);
 }
 
 export async function updateInvoiceStatus(
@@ -140,7 +140,6 @@ export async function updateInvoiceStatus(
   const response = await apiClient.patch<unknown>(
     `/invoices/${invoiceId}/status`,
     {
-      status,
       paid: status === "paid",
     },
   );

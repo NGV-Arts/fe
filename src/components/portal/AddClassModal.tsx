@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import TimezoneSelect, { type ITimezone } from "react-timezone-select";
 
 import { getBrowserTimeZone } from "@/lib/utils/datetime";
@@ -54,7 +54,11 @@ function getTimeZoneValue(timezone: ITimezone): string {
   return typeof timezone === "string" ? timezone : timezone.value;
 }
 
-export default function AddClassModal({
+export default function AddClassModal(props: Props) {
+  return props.open ? <AddClassModalDialog {...props} /> : null;
+}
+
+function AddClassModalDialog({
   open,
   students,
   groups,
@@ -67,28 +71,13 @@ export default function AddClassModal({
   const [groupClass, setGroupClass] = useState(false);
   const [studentId, setStudentId] = useState("");
   const [groupId, setGroupId] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [date, setDate] = useState(getLocalDateInputValue);
+  const [time, setTime] = useState("17:00");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [timezone, setTimezone] = useState<ITimezone>({
     value: browserTimeZone,
     label: browserTimeZone,
   });
-
-  useEffect(() => {
-    if (!open) return;
-
-    setGroupClass(false);
-    setStudentId("");
-    setGroupId("");
-    setDate(getLocalDateInputValue());
-    setTime("17:00");
-    setDurationMinutes(60);
-    setTimezone({
-      value: browserTimeZone,
-      label: browserTimeZone,
-    });
-  }, [browserTimeZone, open]);
 
   if (!open) return null;
 

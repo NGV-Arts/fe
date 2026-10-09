@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -54,7 +55,9 @@ export default function PortalNav() {
             }}
             aria-label="Go to dashboard"
           >
-            <img
+            <Image
+              width={48}
+              height={48}
               src="/logo.png"
               alt="Logo"
               className="h-12 w-12 rounded-full object-cover"
@@ -92,7 +95,11 @@ export default function PortalNav() {
               </Link>
               {user?.role === "teacher" || user?.role === "admin" ? (
                 <Link
-                  href="/portal/students"
+                  href={
+                    user?.role === "admin"
+                      ? "/portal/admin/students"
+                      : "/portal/students"
+                  }
                   onClick={() => setOpen(false)}
                   className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >

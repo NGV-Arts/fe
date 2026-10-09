@@ -15,5 +15,8 @@ export interface AuthUser {
   role: UserRole;
   class?: UserClassBalance;
   attended?: number;
-  primaryTeacher?: string | null;
+  primaryTeacher?:
+    string | Pick<AuthUser, "_id" | "firstName" | "lastName" | "email"> | null;
+  studentCount?: number;
+  groupCount?: number;
 }

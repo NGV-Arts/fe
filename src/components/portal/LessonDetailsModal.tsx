@@ -21,6 +21,7 @@ type Props = {
   timeZone: string;
   joinDisabled: boolean;
   joining: boolean;
+  error?: string | null;
   onClose: () => void;
   onJoin: (lesson: Lesson) => void;
 };
@@ -65,6 +66,7 @@ export default function LessonDetailsModal({
   timeZone,
   joinDisabled,
   joining,
+  error,
   onClose,
   onJoin,
 }: Props) {
@@ -142,7 +144,9 @@ export default function LessonDetailsModal({
       <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">{modalTitle}</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {modalTitle}
+            </h2>
             <p className="mt-1 text-sm text-gray-600">
               {lesson.groupClass
                 ? getGroupStudentFirstNames(lessonGroup)
@@ -198,6 +202,11 @@ export default function LessonDetailsModal({
         </div>
 
         <div className="mt-6">
+          {error ? (
+            <p role="alert" className="mb-3 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => onJoin(lesson)}

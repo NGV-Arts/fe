@@ -11,6 +11,7 @@ import PlaceholderSection from "@/components/portal/PlaceholderSection";
 import PortalShell from "@/components/portal/PortalShell";
 import {
   fetchMyLessonsInRange,
+  getJoinedLessonUpdate,
   joinStudentLesson,
 } from "@/lib/api/lessons";
 import { getUser, updateStoredUser } from "@/lib/auth/session";
@@ -18,17 +19,14 @@ import { getBrowserTimeZone } from "@/lib/utils/datetime";
 import { Lesson } from "@/types/lesson";
 import { AuthUser } from "@/types/user";
 
-function getApiErrorMessage(
-  error: unknown,
-  fallback: string,
-): string {
+function getApiErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
-    const responseMessage = (error.response?.data as
-      | { message?: string | string[] }
-      | undefined)?.message;
+    const responseMessage = (
+      error.response?.data as { message?: string | string[] } | undefined
+    )?.message;
 
     if (Array.isArray(responseMessage)) {
-      return responseMessage[0] || fallback;
+      return responseMessage.join(", ") || fallback;
     }
 
     return responseMessage || fallback;
@@ -58,6 +56,7 @@ export default function StudentPortalPage() {
       setLoading(true);
       setError(null);
       const data = await fetchMyLessonsInRange({ start, end });
+
       setLessons(data);
     } catch (error) {
       setError(getApiErrorMessage(error, "Failed to load classes"));
@@ -67,7 +66,19 @@ export default function StudentPortalPage() {
   };
 
   const handleJoin = async (lesson: Lesson) => {
+    if (!lesson?._id) {
+      console.error("[JoinLesson][student] missing lesson id");
+      setError("Unable to identify this lesson.");
+      return;
+    }
+
     if (classesLeft < 0) {
+      console.warn("[JoinLesson][student] blocked by class balance", {
+        classesLeft,
+      });
+      setError(
+        "You have exceeded your class limit. Please contact your teacher.",
+      );
       return;
     }
 
@@ -90,22 +101,20 @@ export default function StudentPortalPage() {
             classCycle: previousUser.class?.classCycle ?? 0,
             left: result.left,
           },
-          attended: (previousUser.attended ?? 0) + 1,
+          attended: result.attended,
         };
 
         updateStoredUser(nextUser);
         return nextUser;
       });
 
+      const lessonUpdate = getJoinedLessonUpdate(result.lesson);
       setLessons((previousLessons) =>
         previousLessons.map((item) =>
           item._id === lesson._id
             ? {
                 ...item,
-                joinedStudents: [
-                  ...(item.joinedStudents ?? []),
-                  ...(user?._id ? [user._id] : []),
-                ],
+                ...lessonUpdate,
               }
             : item,
         ),
@@ -115,14 +124,30 @@ export default function StudentPortalPage() {
         previousLesson && previousLesson._id === lesson._id
           ? {
               ...previousLesson,
-              joinedStudents: [
-                ...(previousLesson.joinedStudents ?? []),
-                ...(user?._id ? [user._id] : []),
-              ],
+              ...lessonUpdate,
             }
           : previousLesson,
       );
+
+      const joinUrl =
+        result.lesson.teamsJoinUrl ||
+        result.teamsJoinUrl ||
+        lesson.teamsJoinUrl;
+
+      if (!joinUrl) {
+        console.error("[JoinLesson][student] no Teams URL available", {
+          lesson,
+          joinResponse: result,
+        });
+        setError(
+          "This lesson does not currently have a Teams meeting link. Please refresh the calendar and try again.",
+        );
+        return;
+      }
+
+      window.location.assign(joinUrl);
     } catch (error) {
+      console.error("[JoinLesson][student] failed", error);
       setError(getApiErrorMessage(error, "Failed to join class"));
     } finally {
       setJoiningLessonId(null);
@@ -161,7 +186,7 @@ export default function StudentPortalPage() {
                   Rate
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-gray-900">
-                  {(user?.class?.currency ?? "USD")} {user?.class?.rate ?? 0}
+                  {user?.class?.currency ?? "USD"} {user?.class?.rate ?? 0}
                 </p>
               </div>
             </div>
@@ -196,6 +221,7 @@ export default function StudentPortalPage() {
             timeZone={timeZone}
             joinDisabled={classesLeft < 0}
             joining={joiningLessonId === selectedLesson?._id}
+            error={error}
             onClose={() => setSelectedLesson(null)}
             onJoin={handleJoin}
           />

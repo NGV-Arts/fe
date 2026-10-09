@@ -1,15 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
+import { TeacherSelect, Feedback } from "./ManagementUI";
 import { AuthUser } from "@/types/user";
 
 type Props = {
   open: boolean;
   allStudents: AuthUser[];
   loading?: boolean;
+  teachers?: AuthUser[];
+  error?: string | null;
   onClose: () => void;
-  onCreate: (payload: { name?: string; studentIds: string[] }) => void;
+  onCreate: (payload: {
+    name?: string;
+    studentIds: string[];
+    primaryTeacherId?: string;
+  }) => void;
 };
 
 function getStudentFullName(student: AuthUser) {
@@ -19,24 +26,23 @@ function getStudentFullName(student: AuthUser) {
   return full || student.email;
 }
 
-export default function AddGroupModal({
+export default function AddGroupModal(props: Props) {
+  return props.open ? <AddGroupModalDialog {...props} /> : null;
+}
+
+function AddGroupModalDialog({
   open,
   allStudents,
   loading = false,
+  teachers,
+  error,
   onClose,
   onCreate,
 }: Props) {
+  const [primaryTeacherId, setPrimaryTeacherId] = useState("");
   const [name, setName] = useState("");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (!open) {
-      setName("");
-      setSearch("");
-      setSelectedIds([]);
-    }
-  }, [open]);
 
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -47,9 +53,7 @@ export default function AddGroupModal({
     if (!q) return sortedStudents;
 
     return sortedStudents.filter((student) => {
-      const fullName = `${student.firstName ?? ""} ${
-        student.lastName ?? ""
-      }`
+      const fullName = `${student.firstName ?? ""} ${student.lastName ?? ""}`
         .trim()
         .toLowerCase();
       const email = (student.email ?? "").toLowerCase();
@@ -77,13 +81,19 @@ export default function AddGroupModal({
   const handleCreate = () => {
     onCreate({
       name: name.trim() || undefined,
-      studentIds: selectedIds,
+      studentIds: [...new Set(selectedIds)],
+      ...(teachers ? { primaryTeacherId } : {}),
     });
   };
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add group"
+        className="max-h-[90vh] overflow-y-auto w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-xl"
+      >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Add group</h2>
@@ -95,14 +105,25 @@ export default function AddGroupModal({
 
           <button
             type="button"
+            disabled={loading}
             onClick={handleClose}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            className="rounded-md border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
             Close
           </button>
         </div>
 
+        <Feedback error={error} />
         <div className="space-y-4">
+          {teachers && (
+            <TeacherSelect
+              required
+              teachers={teachers}
+              value={primaryTeacherId}
+              onChange={setPrimaryTeacherId}
+              disabled={loading}
+            />
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">
               Group name (optional)
@@ -112,7 +133,7 @@ export default function AddGroupModal({
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Optional group name"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 outline-none focus:border-black focus:ring-2 focus:ring-black/10"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-600 outline-none focus:border-black focus:ring-2 focus:ring-black/10"
             />
           </div>
 
@@ -122,7 +143,7 @@ export default function AddGroupModal({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search students..."
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 outline-none focus:border-black focus:ring-2 focus:ring-black/10"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-600 outline-none focus:border-black focus:ring-2 focus:ring-black/10"
             />
           </div>
 
@@ -147,7 +168,7 @@ export default function AddGroupModal({
                       <span className="font-medium text-gray-900">
                         {getStudentFullName(student)}
                       </span>
-                      <span className="text-gray-500">({student.email})</span>
+                      <span className="text-gray-700">({student.email})</span>
                     </label>
                   );
                 })}
@@ -159,15 +180,20 @@ export default function AddGroupModal({
         <div className="mt-6 flex gap-3">
           <button
             type="button"
+            disabled={loading}
             onClick={handleClose}
-            className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            className="flex-1 rounded-md border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
             Cancel
           </button>
 
           <button
             type="button"
-            disabled={loading || selectedIds.length === 0}
+            disabled={
+              loading ||
+              selectedIds.length === 0 ||
+              (!!teachers && !primaryTeacherId)
+            }
             onClick={handleCreate}
             className="flex-1 rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >

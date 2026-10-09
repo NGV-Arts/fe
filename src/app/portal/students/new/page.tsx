@@ -54,8 +54,7 @@ export default function AddStudentPage() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as
-          | { message?: string | string[] }
-          | undefined;
+          { message?: string | string[] } | undefined;
         const rawMessage = data?.message;
         const message = Array.isArray(rawMessage)
           ? rawMessage.join(", ")
@@ -73,7 +72,7 @@ export default function AddStudentPage() {
   const isAdmin = currentUser?.role === "admin";
 
   return (
-    <PortalGuard allowedRoles={["teacher", "admin"]}>
+    <PortalGuard allowedRoles={["teacher"]}>
       <PortalShell title="Add Student">
         <div className="mx-auto max-w-3xl space-y-6">
           {isAdmin ? (

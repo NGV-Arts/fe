@@ -76,7 +76,7 @@ export default function LessonsCalendar({
 }: Props) {
   const events = lessons.map((lesson) => ({
     id: lesson._id,
-    title: getEventTitle(lesson, viewerRole),
+    title: `${getEventTitle(lesson, viewerRole)}${lesson.meetingStatus ? ` (${lesson.meetingStatus})` : ""}`,
     start: lesson.startTime,
     end: lesson.endTime,
     extendedProps: {

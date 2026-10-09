@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import TimezoneSelect, { type ITimezone } from "react-timezone-select";
 
-import { getBrowserTimeZone } from "@/lib/utils/datetime";
+import {
+  getBrowserTimeZone,
+  getLessonFormDateTime,
+} from "@/lib/utils/datetime";
 import { Lesson } from "@/types/lesson";
 
 type Props = {
   open: boolean;
   lesson: Lesson | null;
   loading?: boolean;
+  error?: string | null;
   onClose: () => void;
   onSubmit: (payload: {
     date: string;
@@ -18,16 +22,6 @@ type Props = {
     durationMinutes: number;
   }) => void;
 };
-
-function getInitialDate(iso?: string) {
-  if (!iso) return "";
-  return new Date(iso).toISOString().slice(0, 10);
-}
-
-function getInitialTime(iso?: string) {
-  if (!iso) return "";
-  return new Date(iso).toISOString().slice(11, 16);
-}
 
 function getInitialDurationMinutes(lesson?: Lesson | null) {
   if (!lesson) return 60;
@@ -40,33 +34,33 @@ function getTimeZoneValue(timezone: ITimezone): string {
   return typeof timezone === "string" ? timezone : timezone.value;
 }
 
-export default function RescheduleSingleModal({
+export default function RescheduleSingleModal(props: Props) {
+  return props.open && props.lesson ? (
+    <RescheduleSingleModalDialog key={props.lesson?._id} {...props} />
+  ) : null;
+}
+
+function RescheduleSingleModalDialog({
   open,
   lesson,
   loading = false,
+  error,
   onClose,
   onSubmit,
 }: Props) {
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState(60);
+  const initial = getLessonFormDateTime(
+    lesson?.startTime,
+    lesson?.timezone || getBrowserTimeZone(),
+  );
+  const [date, setDate] = useState(initial.date);
+  const [time, setTime] = useState(initial.time);
+  const [durationMinutes, setDurationMinutes] = useState(
+    getInitialDurationMinutes(lesson),
+  );
   const [timezone, setTimezone] = useState<ITimezone>({
-    value: getBrowserTimeZone(),
-    label: getBrowserTimeZone(),
+    value: lesson?.timezone || getBrowserTimeZone(),
+    label: lesson?.timezone || getBrowserTimeZone(),
   });
-
-  useEffect(() => {
-    if (lesson) {
-      setDate(getInitialDate(lesson.startTime));
-      setTime(getInitialTime(lesson.startTime));
-      setDurationMinutes(getInitialDurationMinutes(lesson));
-      const nextTimeZone = lesson.timezone || getBrowserTimeZone();
-      setTimezone({
-        value: nextTimeZone,
-        label: nextTimeZone,
-      });
-    }
-  }, [lesson]);
 
   if (!open || !lesson) return null;
 
@@ -74,12 +68,24 @@ export default function RescheduleSingleModal({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold text-gray-900">Reschedule class</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Reschedule class"
+        className="max-h-[90vh] overflow-y-auto w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl"
+      >
+        <h2 className="text-lg font-semibold text-gray-900">
+          Reschedule class
+        </h2>
         <p className="mt-2 text-sm text-gray-600">
           Choose the new date, time, timezone, and duration for this class.
         </p>
 
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-800">
+            {error}
+          </p>
+        )}
         <div className="mt-6 space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">
@@ -161,6 +167,7 @@ export default function RescheduleSingleModal({
         <div className="mt-6 flex gap-3">
           <button
             type="button"
+            disabled={loading}
             onClick={onClose}
             className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
           >

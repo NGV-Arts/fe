@@ -17,6 +17,7 @@ import {
   createLesson,
   deleteLesson,
   fetchMyLessonsInRange,
+  getJoinedLessonUpdate,
   joinTeacherLesson,
   rescheduleRecurringLessons,
   rescheduleSingleLesson,
@@ -38,7 +39,7 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
       ?.message;
 
     if (Array.isArray(responseMessage)) {
-      return responseMessage[0] || fallback;
+      return responseMessage.join(", ") || fallback;
     }
 
     return responseMessage || fallback;
@@ -56,20 +57,26 @@ export default function TeacherPortalPage() {
   const [timeZone, setTimeZone] = useState("UTC");
   const [students, setStudents] = useState<AuthUser[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [lastRange, setLastRange] = useState<{ start: string; end: string } | null>(null);
+  const [lastRange, setLastRange] = useState<{
+    start: string;
+    end: string;
+  } | null>(null);
   const [addClassOpen, setAddClassOpen] = useState(false);
   const [createClassLoading, setCreateClassLoading] = useState(false);
 
   const [recurringChoiceOpen, setRecurringChoiceOpen] = useState(false);
-  const [recurringChoiceMode, setRecurringChoiceMode] = useState<"delete" | "reschedule">("delete");
+  const [recurringChoiceMode, setRecurringChoiceMode] = useState<
+    "delete" | "reschedule"
+  >("delete");
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [pendingDeleteMode, setPendingDeleteMode] = useState<PendingDeleteMode>(null);
+  const [pendingDeleteMode, setPendingDeleteMode] =
+    useState<PendingDeleteMode>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [rescheduleSingleOpen, setRescheduleSingleOpen] = useState(false);
   const [rescheduleSeriesOpen, setRescheduleSeriesOpen] = useState(false);
-  const [pendingRescheduleMode, setPendingRescheduleMode] = useState<PendingRescheduleMode>(null);
+  const [, setPendingRescheduleMode] = useState<PendingRescheduleMode>(null);
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   useEffect(() => {
@@ -110,6 +117,7 @@ export default function TeacherPortalPage() {
       setError(null);
       setLastRange({ start, end });
       const data = await fetchMyLessonsInRange({ start, end });
+
       setLessons(data);
     } catch (error) {
       setError(getApiErrorMessage(error, "Failed to load classes"));
@@ -123,35 +131,59 @@ export default function TeacherPortalPage() {
     await loadRange(lastRange.start, lastRange.end);
   };
 
-  const handleJoin = async () => {
-    if (!selectedLesson) return;
+  const handleJoin = async (lesson: Lesson) => {
+    if (!lesson?._id) {
+      console.error("[JoinLesson][teacher] missing lesson id");
+      setError("Unable to identify this lesson.");
+      return;
+    }
 
     try {
-      setJoiningLessonId(selectedLesson._id);
+      setJoiningLessonId(lesson._id);
       setError(null);
 
-      await joinTeacherLesson(selectedLesson._id);
+      const result = await joinTeacherLesson(lesson._id);
 
+      const lessonUpdate = getJoinedLessonUpdate(result.lesson);
       setLessons((previousLessons) =>
         previousLessons.map((item) =>
-          item._id === selectedLesson._id
+          item._id === lesson._id
             ? {
                 ...item,
-                teacherJoined: true,
+                ...lessonUpdate,
               }
             : item,
         ),
       );
 
       setSelectedLesson((previousLesson) =>
-        previousLesson
+        previousLesson && previousLesson._id === lesson._id
           ? {
               ...previousLesson,
-              teacherJoined: true,
+              ...lessonUpdate,
             }
           : previousLesson,
       );
+
+      const joinUrl =
+        result.lesson.teamsJoinUrl ||
+        result.teamsJoinUrl ||
+        lesson.teamsJoinUrl;
+
+      if (!joinUrl) {
+        console.error("[JoinLesson][teacher] no Teams URL available", {
+          lesson,
+          joinResponse: result,
+        });
+        setError(
+          "This lesson does not currently have a Teams meeting link. Please refresh the calendar and try again.",
+        );
+        return;
+      }
+
+      window.location.assign(joinUrl);
     } catch (error) {
+      console.error("[JoinLesson][teacher] failed", error);
       setError(getApiErrorMessage(error, "Failed to join class"));
     } finally {
       setJoiningLessonId(null);
@@ -370,10 +402,9 @@ export default function TeacherPortalPage() {
             lesson={selectedLesson}
             timeZone={timeZone}
             joining={joiningLessonId === selectedLesson?._id}
+            error={error}
             onClose={closeAllModals}
-            onJoin={() => {
-              void handleJoin();
-            }}
+            onJoin={handleJoin}
             onDelete={startDeleteFlow}
             onReschedule={startRescheduleFlow}
           />
@@ -395,7 +426,9 @@ export default function TeacherPortalPage() {
                 : "This will delete this class."
             }
             confirmLabel={
-              pendingDeleteMode === "series" ? "Delete all future classes" : "Delete class"
+              pendingDeleteMode === "series"
+                ? "Delete all future classes"
+                : "Delete class"
             }
             loading={deleteLoading}
             onClose={closeAllModals}
